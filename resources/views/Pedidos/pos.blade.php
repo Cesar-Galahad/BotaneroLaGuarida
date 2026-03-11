@@ -147,19 +147,19 @@
 
         {{-- Lista productos --}}
         <div class="flex-1 overflow-y-auto space-y-2 mb-4">
-            <template x-for="item in pedido" :key="item.producto_id">
+            <template x-for="item in pedido" :key="item.producto_id + '_' + (item.promocion_id ?? 'normal')">
                 <div class="bg-gray-50 rounded-lg px-3 py-2">
                     <div class="flex justify-between items-start">
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-semibold text-gray-800 truncate" x-text="item.nombre"></p>
                             <p class="text-xs text-gray-500" x-text="'$' + item.precio.toFixed(2) + ' c/u'"></p>
                             <p x-show="item.es_promo"
-                               class="text-xs text-yellow-600 font-semibold">
+                            class="text-xs text-yellow-600 font-semibold">
                                 🏷️ Con promoción
                             </p>
                             <p x-show="item.descuento > 0"
-                               class="text-xs text-green-600 font-semibold"
-                               x-text="'Descuento: -$' + item.descuento.toFixed(2)">
+                            class="text-xs text-green-600 font-semibold"
+                            x-text="'Descuento: -$' + item.descuento.toFixed(2)">
                             </p>
                         </div>
                         <div class="flex items-center gap-1 ml-2">
@@ -173,7 +173,7 @@
                         </div>
                     </div>
                     <p class="text-xs text-right font-bold text-gray-700 mt-1"
-                       x-text="'Subtotal: $' + item.subtotal.toFixed(2)">
+                    x-text="'Subtotal: $' + item.subtotal.toFixed(2)">
                     </p>
                 </div>
             </template>
@@ -350,29 +350,45 @@ function pos(pedidoId, productos, promociones, itemsIniciales) {
                 : Math.min(promo.valor, precio);
             return precio - descuento;
         },
+        // Clave única por producto + promo
+        claveItem(productoId, promocionId) {
+            return `${productoId}_${promocionId ?? 'normal'}`;
+        },
+
+        cantidadEn(productoId) {
+            // Solo cuenta los sin promo para el badge
+            const item = this.pedido.find(p => p.producto_id === productoId && !p.es_promo);
+            return item ? item.cantidad : 0;
+        },
 
         async agregarProducto(producto, promo) {
-            const descuento = promo
-                ? (promo.tipo === 'porcentaje'
-                    ? Math.round(producto.precio * promo.valor / 100 * 100) / 100
-                    : Math.min(promo.valor, producto.precio))
-                : 0;
+            let descuento = 0;
+            let cantidad  = 1;
 
-            const existente = this.pedido.find(p => p.producto_id === producto.id);
+            if (promo) {
+                if (promo.nombre.includes('2x1')) cantidad = 2;
+                else if (promo.nombre.includes('3x2')) cantidad = 3;
+
+                descuento = promo.tipo === 'porcentaje'
+                    ? Math.round(producto.precio * promo.valor / 100 * 100) / 100
+                    : Math.min(promo.valor, producto.precio);
+            }
+
+            // Buscar por clave única producto + promo
+            const clave     = this.claveItem(producto.id, promo ? promo.id : null);
+            const existente = this.pedido.find(p => this.claveItem(p.producto_id, p.promocion_id) === clave);
 
             if (existente) {
-                existente.cantidad++;
-                existente.descuento = descuento;
-                existente.subtotal  = (existente.precio - descuento) * existente.cantidad;
-                existente.es_promo  = !!promo;
+                existente.cantidad += cantidad;
+                existente.subtotal  = (existente.precio - existente.descuento) * existente.cantidad;
             } else {
                 this.pedido.push({
                     producto_id:  producto.id,
                     nombre:       producto.nombre,
                     precio:       producto.precio,
                     descuento:    descuento,
-                    cantidad:     1,
-                    subtotal:     producto.precio - descuento,
+                    cantidad:     cantidad,
+                    subtotal:     (producto.precio - descuento) * cantidad,
                     es_promo:     !!promo,
                     promocion_id: promo ? promo.id : null,
                 });
@@ -381,12 +397,12 @@ function pos(pedidoId, productos, promociones, itemsIniciales) {
             await fetch(`/pedidos/${this.pedidoId}/agregar`, {
                 method:  'POST',
                 headers: {
-                    'Content-Type':  'application/json',
-                    'X-CSRF-TOKEN':  document.querySelector('meta[name="csrf-token"]').content
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                 },
                 body: JSON.stringify({
                     producto_id:  producto.id,
-                    cantidad:     1,
+                    cantidad:     cantidad,
                     promocion_id: promo ? promo.id : null,
                 }),
             });
@@ -399,8 +415,8 @@ function pos(pedidoId, productos, promociones, itemsIniciales) {
             await fetch(`/pedidos/${this.pedidoId}/cantidad`, {
                 method:  'PATCH',
                 headers: {
-                    'Content-Type':  'application/json',
-                    'X-CSRF-TOKEN':  document.querySelector('meta[name="csrf-token"]').content
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                 },
                 body: JSON.stringify({ producto_id: item.producto_id, cantidad: item.cantidad }),
             });
@@ -414,8 +430,8 @@ function pos(pedidoId, productos, promociones, itemsIniciales) {
                 await fetch(`/pedidos/${this.pedidoId}/cantidad`, {
                     method:  'PATCH',
                     headers: {
-                        'Content-Type':  'application/json',
-                        'X-CSRF-TOKEN':  document.querySelector('meta[name="csrf-token"]').content
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                     },
                     body: JSON.stringify({ producto_id: item.producto_id, cantidad: item.cantidad }),
                 });
@@ -425,13 +441,15 @@ function pos(pedidoId, productos, promociones, itemsIniciales) {
         },
 
         async eliminar(item) {
-            this.pedido = this.pedido.filter(p => p !== item);
+            this.pedido = this.pedido.filter(p =>
+                this.claveItem(p.producto_id, p.promocion_id) !== this.claveItem(item.producto_id, item.promocion_id)
+            );
 
             await fetch(`/pedidos/${this.pedidoId}/eliminar`, {
                 method:  'DELETE',
                 headers: {
-                    'Content-Type':  'application/json',
-                    'X-CSRF-TOKEN':  document.querySelector('meta[name="csrf-token"]').content
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                 },
                 body: JSON.stringify({ producto_id: item.producto_id }),
             });

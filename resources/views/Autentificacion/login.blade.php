@@ -56,15 +56,19 @@
                     Iniciar sesión
                 </button>
 
-                @if($errors->any())
-                    <div class="mt-4 bg-red-600 text-white p-3 rounded-lg text-sm">
-                        <ul>
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
+                {{-- Error de correo --}}
+                @error('correo')
+                    <div class="mt-4 bg-red-600 text-white p-3 rounded-lg text-sm flex items-center gap-2">
+                        <span></span> {{ $message }}
                     </div>
-                @endif
+                @enderror
+
+                {{-- Error de contraseña --}}
+                @error('contrasena')
+                    <div class="mt-4 bg-red-600 text-white p-3 rounded-lg text-sm flex items-center gap-2">
+                        <span></span> {{ $message }}
+                    </div>
+                @enderror
 
                 <!-- Separador -->
                 <div class="flex items-center my-6">
@@ -74,19 +78,18 @@
                 </div>
 
                 <!-- Botón Google -->
-                <button type="button"
+                <a href="{{ route('auth.google') }}"
                     class="w-full flex items-center justify-center gap-3 bg-white text-black py-3 rounded-lg hover:bg-gray-200 transition">
-                    
-                    <!-- SVG intacto -->
-                    <svg class="w-5 h-5" viewBox="0 0 48 48">
-                        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 3l5.7-5.7C33.7 6.1 29.1 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/>
-                        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 18.9 12 24 12c3 0 5.7 1.1 7.8 3l5.7-5.7C33.7 6.1 29.1 4 24 4c-7.7 0-14.3 4.4-17.7 10.7z"/>
-                        <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.1C29.2 35.1 26.7 36 24 36c-5.3 0-9.8-3.4-11.3-8l-6.5 5C9.5 39.4 16.2 44 24 44z"/>
-                        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.1 3-3.2 5.4-6.1 6.9l6.2 5.1C34.9 38.6 44 32 44 24c0-1.3-.1-2.3-.4-3.5z"/>
-                    </svg>
+                        
+                        <svg class="w-5 h-5" viewBox="0 0 48 48">
+                            <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 3l5.7-5.7C33.7 6.1 29.1 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/>
+                            <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 18.9 12 24 12c3 0 5.7 1.1 7.8 3l5.7-5.7C33.7 6.1 29.1 4 24 4c-7.7 0-14.3 4.4-17.7 10.7z"/>
+                            <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.1C29.2 35.1 26.7 36 24 36c-5.3 0-9.8-3.4-11.3-8l-6.5 5C9.5 39.4 16.2 44 24 44z"/>
+                            <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.1 3-3.2 5.4-6.1 6.9l6.2 5.1C34.9 38.6 44 32 44 24c0-1.3-.1-2.3-.4-3.5z"/>
+                        </svg>
 
                     Iniciar con Google
-                </button>
+                </a>
 
             </form>
 

@@ -18,6 +18,8 @@ class Empleado extends Authenticatable
         'apellidom',
         'correo',
         'contrasena',
+        'google_id',
+        'primer_login',
         'estado',
         'imagen',
         'rol_id',

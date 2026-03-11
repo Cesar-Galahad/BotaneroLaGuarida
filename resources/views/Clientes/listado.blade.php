@@ -3,6 +3,7 @@
 @section('titulo', 'Clientes')
 
 @section('content')
+@php $rol = Auth::guard('empleado')->user()->rol->nombre ?? ''; @endphp
 
 @if(session('success'))
     <div class="mb-4 p-4 bg-green-100 border border-green-400 text-green-800 rounded-lg">
@@ -13,10 +14,12 @@
 {{-- Encabezado --}}
 <div class="flex justify-between items-center mb-6">
     <h3 class="text-xl font-bold text-gray-800">Listado de clientes</h3>
-    <a href="{{ route('clientes.create') }}"
-       class="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
-        + Nuevo cliente
-    </a>
+    @if($rol === 'Administrador')
+        <a href="{{ route('clientes.create') }}"
+        class="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
+            + Nuevo cliente
+        </a>
+    @endif
 </div>
 
 {{-- Tabla --}}
@@ -30,7 +33,11 @@
                 <th class="px-4 py-3">Teléfono</th>
                 <th class="px-4 py-3">Puntos</th>
                 <th class="px-4 py-3">Estado</th>
-                <th class="px-4 py-3 text-center">Acciones</th>
+                @if($rol === 'Administrador')
+                    <th class="px-4 py-3 text-center">Acciones</th>
+                @else
+                    <th class="px-4 py-3"></th>
+                @endif
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
@@ -76,6 +83,7 @@
                 {{-- Acciones --}}
                 <td class="px-4 py-3">
                     <div class="flex justify-center gap-2">
+                        @if($rol === 'Administrador')
                         <a href="{{ route('clientes.edit', $cliente) }}"
                            class="bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-semibold px-3 py-1 rounded-lg transition">
                             Editar
@@ -89,6 +97,7 @@
                                 Eliminar
                             </button>
                         </form>
+                        @endif
                     </div>
                 </td>
             </tr>

@@ -13,10 +13,14 @@
 {{-- Encabezado --}}
 <div class="flex justify-between items-center mb-6">
     <h3 class="text-xl font-bold text-gray-800">Listado de productos</h3>
-    <a href="{{ route('productos.create') }}"
-       class="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
-        + Nuevo producto
-    </a>
+    @php $rol = Auth::guard('empleado')->user()->rol->nombre ?? ''; @endphp
+
+    @if($rol === 'Administrador')
+        <a href="{{ route('productos.create') }}"
+        class="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
+            + Nuevo producto
+        </a>
+    @endif
 </div>
 
 {{-- Grid de cards --}}
@@ -63,18 +67,26 @@
 
             {{-- Botones --}}
             <div class="flex gap-2 mt-3">
-                <a href="{{ route('productos.edit', $producto) }}"
-                   class="flex-1 text-center bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-semibold py-1.5 rounded-lg transition">
-                    Editar
-                </a>
+                @php $rol = Auth::guard('empleado')->user()->rol->nombre ?? ''; @endphp
+
+                @if($rol === 'Administrador')
+                    <a href="{{ route('productos.edit', $producto) }}"
+                    class="flex-1 text-center bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-semibold py-1.5 rounded-lg transition">
+                        Editar
+                    </a>
+                @endif
                 <form method="POST" action="{{ route('productos.destroy', $producto) }}"
                       onsubmit="return confirm('¿Eliminar este producto?')">
+                    @php $rol = Auth::guard('empleado')->user()->rol->nombre ?? ''; @endphp
+
+                    @if($rol === 'Administrador')
                     @csrf
                     @method('DELETE')
                     <button type="submit"
                             class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition">
                         Eliminar
                     </button>
+                    @endif
                 </form>
             </div>
 

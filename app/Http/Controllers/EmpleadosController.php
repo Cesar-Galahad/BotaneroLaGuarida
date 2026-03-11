@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Socialite\Facades\Socialite;
 
 class EmpleadosController extends Controller
 {
@@ -32,18 +33,36 @@ class EmpleadosController extends Controller
             'contrasena.required' => 'La contraseña es obligatoria.',
         ]);
 
-        $empleado = Empleado::where('correo', $request->correo)
-                            ->where('estado', 'activo')
-                            ->first();
+        // Verificar si el correo existe
+        $empleado = Empleado::where('correo', $request->correo)->first();
 
-        if (! $empleado || ! Hash::check($request->contrasena, $empleado->contrasena)) {
+        if (! $empleado) {
             return back()
                 ->withInput($request->only('correo'))
-                ->withErrors(['correo' => 'Credenciales incorrectas o cuenta inactiva.']);
+                ->withErrors(['correo' => 'No encontramos una cuenta con ese correo.']);
+        }
+
+        // Verificar si está inactivo
+        if ($empleado->estado === 'inactivo') {
+            return back()
+                ->withInput($request->only('correo'))
+                ->withErrors(['correo' => 'Tu cuenta está desactivada, contacta al administrador.']);
+        }
+
+        // Verificar contraseña
+        if (! Hash::check($request->contrasena, $empleado->contrasena)) {
+            return back()
+                ->withInput($request->only('correo'))
+                ->withErrors(['contrasena' => 'La contraseña es incorrecta.']);
         }
 
         Auth::guard('empleado')->login($empleado);
         $request->session()->regenerate();
+
+        // Si es primer login, redirigir a cambio de contraseña
+        if ($empleado->primer_login) {
+            return redirect()->route('primer.login');
+        }
 
         return redirect()->route('dashboard');
     }
@@ -160,5 +179,77 @@ class EmpleadosController extends Controller
 
         return redirect()->route('empleados.index')
                          ->with('success', 'Empleado dado de baja.');
+    }
+    public function showPrimerLogin()
+    {
+        return view('Autentificacion.primer_login');
+    }
+
+    public function cambiarContrasena(Request $request)
+    {
+        $request->validate([
+            'contrasena_nueva'    => ['required', 'string', 'min:6'],
+            'contrasena_confirmar'=> ['required', 'same:contrasena_nueva'],
+        ], [
+            'contrasena_nueva.required'     => 'La nueva contraseña es obligatoria.',
+            'contrasena_nueva.min'          => 'La contraseña debe tener al menos 6 caracteres.',
+            'contrasena_confirmar.required' => 'Confirma tu nueva contraseña.',
+            'contrasena_confirmar.same'     => 'Las contraseñas no coinciden.',
+        ]);
+
+        $empleado = Auth::guard('empleado')->user();
+
+        $empleado->update([
+            'contrasena'   => Hash::make($request->contrasena_nueva),
+            'primer_login' => 0,
+        ]);
+
+        return redirect()->route('dashboard')
+                        ->with('success', '¡Contraseña actualizada correctamente!');
+    }
+    public function redirectToGoogle()
+    {
+        return Socialite::driver('google')->redirect();
+    }
+
+    public function handleGoogleCallback()
+    {
+        try {
+            $googleUser = Socialite::driver('google')->user();
+        } catch (\Exception $e) {
+            return redirect()->route('login')
+                            ->withErrors(['correo' => 'No se pudo autenticar con Google.']);
+        }
+
+        // Buscar empleado por google_id o por correo
+        $empleado = Empleado::where('google_id', $googleUser->getId())
+                            ->orWhere('correo', $googleUser->getEmail())
+                            ->first();
+
+        // Si no existe en la BD, no puede entrar
+        if (! $empleado) {
+            return redirect()->route('login')
+                            ->withErrors(['correo' => 'Tu cuenta de Google no está registrada en el sistema.']);
+        }
+
+        // Si está inactivo
+        if ($empleado->estado === 'inactivo') {
+            return redirect()->route('login')
+                            ->withErrors(['correo' => 'Tu cuenta está desactivada, contacta al administrador.']);
+        }
+
+        // Guardar google_id si es la primera vez que usa Google
+        if (! $empleado->google_id) {
+            $empleado->update(['google_id' => $googleUser->getId()]);
+        }
+
+        Auth::guard('empleado')->login($empleado);
+        request()->session()->regenerate();
+
+        if ($empleado->primer_login) {
+            return redirect()->route('primer.login');
+        }
+
+        return redirect()->route('dashboard');
     }
 }

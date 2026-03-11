@@ -4,6 +4,8 @@
 
 @section('content')
 
+@php $rol = Auth::guard('empleado')->user()->rol->nombre ?? ''; @endphp
+
 @if(session('success'))
     <div class="mb-4 p-4 bg-green-100 border border-green-400 text-green-800 rounded-lg">
         {{ session('success') }}
@@ -12,10 +14,12 @@
 
 <div class="flex justify-between items-center mb-6">
     <h3 class="text-xl font-bold text-gray-800">Listado de promociones</h3>
-    <a href="{{ route('promociones.create') }}"
-       class="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
-        + Nueva promoción
-    </a>
+    @if($rol === 'Administrador')
+        <a href="{{ route('promociones.create') }}"
+           class="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
+            + Nueva promoción
+        </a>
+    @endif
 </div>
 
 <div class="bg-white rounded-2xl shadow overflow-hidden">
@@ -28,7 +32,11 @@
                 <th class="px-4 py-3">Valor</th>
                 <th class="px-4 py-3">Vigencia</th>
                 <th class="px-4 py-3">Estado</th>
-                <th class="px-4 py-3 text-center">Acciones</th>
+                @if($rol === 'Administrador')
+                    <th class="px-4 py-3 text-center">Acciones</th>
+                @else
+                    <th class="px-4 py-3"></th>
+                @endif
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
@@ -56,19 +64,21 @@
                 </td>
                 <td class="px-4 py-3">
                     <div class="flex justify-center gap-2">
-                        <a href="{{ route('promociones.edit', $promocion) }}"
-                           class="bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-semibold px-3 py-1 rounded-lg transition">
-                            Editar
-                        </a>
-                        <form method="POST" action="{{ route('promociones.destroy', $promocion) }}"
-                              onsubmit="return confirm('¿Eliminar esta promoción?')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit"
-                                    class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1 rounded-lg transition">
-                                Eliminar
-                            </button>
-                        </form>
+                        @if($rol === 'Administrador')
+                            <a href="{{ route('promociones.edit', $promocion) }}"
+                               class="bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-semibold px-3 py-1 rounded-lg transition">
+                                Editar
+                            </a>
+                            <form method="POST" action="{{ route('promociones.destroy', $promocion) }}"
+                                  onsubmit="return confirm('¿Eliminar esta promoción?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit"
+                                        class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1 rounded-lg transition">
+                                    Eliminar
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 </td>
             </tr>
