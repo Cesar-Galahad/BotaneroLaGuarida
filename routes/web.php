@@ -11,6 +11,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PromocionesController;
 use App\Http\Controllers\MeseroController;
 use App\Http\Controllers\CocineroController;
+use App\Http\Controllers\BitacoraController;
 
 // ── Auth ──────────────────────────────────────────────────────
 Route::get('/', [EmpleadosController::class, 'showLogin'])->name('login');
@@ -107,4 +108,6 @@ Route::middleware('auth:empleado')->group(function () {
         Route::patch('/cocina/pedidos/{pedido}/lista', [CocineroController::class, 'marcarLista'])->name('cocina.lista');
     });
 
+    // ── Bitácora ───────────────────────────
+    Route::get('/bitacora', [BitacoraController::class, 'index'])->name('bitacora.index');
 });
