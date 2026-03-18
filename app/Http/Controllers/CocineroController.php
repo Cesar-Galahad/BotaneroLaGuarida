@@ -15,4 +15,20 @@ class CocineroController extends Controller
 
         return view('Cocina.pedidos', compact('pedidos'));
     }
+
+    public function actualizar()
+    {
+        $pedidos = Pedido::where('estado', 'abierto')
+                         ->with(['mesa', 'detalles.producto'])
+                         ->orderBy('fecha')
+                         ->get();
+
+        return view('Cocina.partials.ordenes', compact('pedidos'));
+    }
+
+    public function marcarLista(Pedido $pedido)
+    {
+        // Por ahora solo confirma, en el futuro puede cambiar estado
+        return response()->json(['ok' => true]);
+    }
 }

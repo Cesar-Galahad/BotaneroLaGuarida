@@ -19,13 +19,13 @@ class PedidosController extends Controller
         $categorias = Categoria::orderBy('nombre')->get();
 
         $productos = Producto::where('estado', 'activo')
-                            ->with(['promociones' => function($q) use ($hoy) {
-                                $q->where('estado', 'activa')
-                                ->where('fecha_inicio', '<=', $hoy)
-                                ->where('fecha_fin', '>=', $hoy);
-                            }])
-                            ->orderBy('nombre')
-                            ->get();
+                        ->with(['promociones' => function($q) use ($hoy) {
+                            $q->where('estado', 'activa')
+                            ->where('fecha_inicio', '<=', $hoy)
+                            ->where('fecha_fin', '>=', $hoy);
+                        }, 'precios'])
+                        ->orderBy('nombre')
+                        ->get();
 
         // Promociones activas y en fecha con sus productos
         $promociones = \App\Models\Promocion::where('estado', 'activa')
@@ -35,8 +35,19 @@ class PedidosController extends Controller
                         ->get();
 
         $detalles = $pedido->detalles()->with('producto')->get();
+        $productosJs = $productos->map(fn($p) => [
+            'id'           => $p->id,
+            'nombre'       => $p->nombre,
+            'precio'       => (float) $p->precio_base,
+            'categoria_id' => $p->categoria_id,
+            'imagen'       => $p->imagen,
+            'precios'      => $p->precios->map(fn($pr) => [
+                'nombre' => $pr->nombre,
+                'precio' => (float) $pr->precio,
+            ])->values(),
+        ])->values();
 
-        return view('Pedidos.pos', compact('pedido', 'categorias', 'productos', 'promociones', 'detalles'));
+        return view('Pedidos.pos', compact('pedido', 'categorias', 'productos', 'promociones', 'detalles', 'productosJs'));
     }
 
     // Listado de pedidos abiertos
@@ -80,8 +91,9 @@ class PedidosController extends Controller
         }
 
         $detalle = DetallePedido::where('pedido_id', $pedido->id)
-                                ->where('producto_id', $producto->id)
-                                ->first();
+                        ->where('producto_id', $producto->id)
+                        ->where('tamano', $request->tamano ?? null)
+                        ->first();
 
         if ($detalle) {
             $detalle->update([
@@ -93,8 +105,9 @@ class PedidosController extends Controller
                 'pedido_id'          => $pedido->id,
                 'producto_id'        => $producto->id,
                 'cantidad'           => $request->cantidad,
-                'precio_unitario'    => $producto->precio_base,
+                'precio_unitario'    => $request->precio ?? $producto->precio_base,
                 'descuento_aplicado' => $descuento,
+                'tamano'             => $request->tamano ?? null,
             ]);
         }
 
@@ -109,8 +122,9 @@ class PedidosController extends Controller
         ]);
 
         DetallePedido::where('pedido_id', $pedido->id)
-                     ->where('producto_id', $request->producto_id)
-                     ->delete();
+                    ->where('producto_id', $request->producto_id)
+                    ->where('tamano', $request->tamano ?? null)
+                    ->delete();
 
         return response()->json(['ok' => true]);
     }
@@ -124,8 +138,9 @@ class PedidosController extends Controller
         ]);
 
         DetallePedido::where('pedido_id', $pedido->id)
-                     ->where('producto_id', $request->producto_id)
-                     ->update(['cantidad' => $request->cantidad]);
+                    ->where('producto_id', $request->producto_id)
+                    ->where('tamano', $request->tamano ?? null)
+                    ->update(['cantidad' => $request->cantidad]);
 
         return response()->json(['ok' => true]);
     }
@@ -149,6 +164,13 @@ class PedidosController extends Controller
             'monto'       => $total,
         ]);
 
+        // Sumar puntos al cliente (10% del total)
+        $pedido->refresh(); // recargar el pedido desde la BD
+        if ($pedido->cliente_id) {
+            $puntos = (int) round($total * 0.05);
+            $pedido->cliente->increment('puntos', $puntos);
+        }
+
         $pedido->update(['estado' => 'cerrado']);
         $pedido->mesa->update(['estado' => 'libre']);
 
@@ -164,5 +186,15 @@ class PedidosController extends Controller
 
         return redirect()->route('mesas.index')
                          ->with('success', 'Pedido cancelado.');
+    }
+    public function asignarCliente(Request $request, Pedido $pedido)
+    {
+        $request->validate([
+            'cliente_id' => ['nullable', 'exists:clientes,id'],
+        ]);
+
+        $pedido->update(['cliente_id' => $request->cliente_id]);
+
+        return response()->json(['ok' => true]);
     }
 }

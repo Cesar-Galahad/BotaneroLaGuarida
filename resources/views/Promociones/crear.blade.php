@@ -90,22 +90,75 @@
             </div>
 
             {{-- Productos --}}
-            <div class="mb-6">
+            <div class="mb-6"
+                x-data="{
+                    seleccionados: {{ json_encode(old('productos', array_map(fn($p) => ['id' => $p['id'], 'tamano' => $p['tamano']], $productosAsignados ?? []))) }},
+                    tieneSeleccionado(id) {
+                        return this.seleccionados.some(p => p.id == id);
+                    },
+                    tamanoDeProducto(id) {
+                        const found = this.seleccionados.find(p => p.id == id);
+                        return found ? found.tamano : '';
+                    },
+                    toggle(id) {
+                        if (this.tieneSeleccionado(id)) {
+                            this.seleccionados = this.seleccionados.filter(p => p.id != id);
+                        } else {
+                            this.seleccionados.push({ id: id, tamano: '' });
+                        }
+                    },
+                    setTamano(id, tamano) {
+                        const item = this.seleccionados.find(p => p.id == id);
+                        if (item) item.tamano = tamano;
+                    }
+                }">
                 <label class="block text-sm font-medium text-gray-700 mb-2">
                     Productos aplicables
                     <span class="text-gray-400 font-normal">(selecciona uno o varios)</span>
                 </label>
-                <div class="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                <div class="border border-gray-300 rounded-lg p-3 max-h-64 overflow-y-auto space-y-3">
                     @foreach($productos as $producto)
-                    <label class="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded p-1">
-                        <input type="checkbox" name="productos[]" value="{{ $producto->id }}"
-                               class="w-4 h-4 accent-red-600"
-                               {{ in_array($producto->id, old('productos', $productosAsignados ?? [])) ? 'checked' : '' }}>
-                        <span class="text-sm text-gray-700">{{ $producto->nombre }}</span>
-                        <span class="ml-auto text-xs text-gray-400">${{ number_format($producto->precio_base, 2) }}</span>
-                    </label>
+                    <div class="rounded p-2 hover:bg-gray-50">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox"
+                                class="w-4 h-4 accent-red-600"
+                                :checked="tieneSeleccionado({{ $producto->id }})"
+                                @change="toggle({{ $producto->id }})">
+                            <span class="text-sm text-gray-700">{{ $producto->nombre }}</span>
+                            @if($producto->precios->count() === 0)
+                                <span class="ml-auto text-xs text-gray-400">${{ number_format($producto->precio_base, 2) }}</span>
+                            @else
+                                <span class="ml-auto text-xs text-gray-400">Con tamaños</span>
+                            @endif
+                        </label>
+
+                        {{-- Selector de tamaño si el producto los tiene --}}
+                        @if($producto->precios->count() > 0)
+                        <div x-show="tieneSeleccionado({{ $producto->id }})" x-cloak class="mt-2 ml-7">
+                            <select @change="setTamano({{ $producto->id }}, $event.target.value)"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-red-500">
+                                <option value="">-- Todos los tamaños --</option>
+                                @foreach($producto->precios as $precio)
+                                    <option value="{{ $precio->nombre }}"
+                                        :selected="tamanoDeProducto({{ $producto->id }}) === '{{ $precio->nombre }}'">
+                                        {{ $precio->nombre }} — ${{ number_format($precio->precio, 2) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @endif
+
+                    </div>
                     @endforeach
                 </div>
+
+                {{-- Inputs hidden para enviar los datos --}}
+                <template x-for="(item, index) in seleccionados" :key="index">
+                    <span>
+                        <input type="hidden" :name="'productos[' + index + '][id]'" :value="item.id">
+                        <input type="hidden" :name="'productos[' + index + '][tamano]'" :value="item.tamano">
+                    </span>
+                </template>
             </div>
 
             {{-- Botones --}}

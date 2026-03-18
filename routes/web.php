@@ -96,11 +96,15 @@ Route::middleware('auth:empleado')->group(function () {
         Route::delete('/pedidos/{pedido}/eliminar', [PedidosController::class, 'eliminarProducto'])->name('pedidos.eliminar');
         Route::patch('/pedidos/{pedido}/cerrar',    [PedidosController::class, 'cerrar'])->name('pedidos.cerrar');
         Route::patch('/pedidos/{pedido}/cancelar',  [PedidosController::class, 'cancelar'])->name('pedidos.cancelar');
+        Route::get('/clientes/buscar', [ClientesController::class, 'buscar'])->name('clientes.buscar');
+        Route::patch('/pedidos/{pedido}/cliente', [PedidosController::class, 'asignarCliente'])->name('pedidos.cliente');
     });
 
     // ── Cocinero ──────────────────────────────────────────────
     Route::middleware('rol:Cocinero')->group(function () {
         Route::get('/cocina/pedidos', [CocineroController::class, 'index'])->name('cocina.pedidos');
+        Route::get('/cocina/pedidos/actualizar', [CocineroController::class, 'actualizar'])->name('cocina.actualizar');
+        Route::patch('/cocina/pedidos/{pedido}/lista', [CocineroController::class, 'marcarLista'])->name('cocina.lista');
     });
 
 });

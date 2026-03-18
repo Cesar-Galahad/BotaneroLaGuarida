@@ -23,73 +23,78 @@ class PromocionesController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'nombre_p'     => ['required', 'string', 'max:150'],
-            'tipo'         => ['required', 'in:porcentaje,monto'],
-            'valor'        => ['required', 'numeric', 'min:0'],
-            'fecha_inicio' => ['required', 'date'],
-            'fecha_fin'    => ['required', 'date', 'after_or_equal:fecha_inicio'],
-            'estado'       => ['required', 'in:activa,inactiva'],
-            'productos'    => ['nullable', 'array'],
-            'productos.*'  => ['exists:productos,id'],
-        ], [
-            'nombre_p.required'     => 'El nombre es obligatorio.',
-            'tipo.required'         => 'Selecciona el tipo de promoción.',
-            'valor.required'        => 'El valor es obligatorio.',
-            'fecha_inicio.required' => 'La fecha de inicio es obligatoria.',
-            'fecha_fin.required'    => 'La fecha de fin es obligatoria.',
-            'fecha_fin.after_or_equal' => 'La fecha fin debe ser igual o posterior a la de inicio.',
+            'nombre_p'    => ['required', 'string', 'max:150'],
+            'tipo'        => ['required', 'in:porcentaje,monto'],
+            'valor'       => ['required', 'numeric', 'min:0'],
+            'fecha_inicio'=> ['required', 'date'],
+            'fecha_fin'   => ['required', 'date', 'after_or_equal:fecha_inicio'],
+            'estado'      => ['required', 'in:activa,inactiva'],
         ]);
 
         $promocion = Promocion::create($request->only([
-            'nombre_p', 'tipo', 'valor',
-            'fecha_inicio', 'fecha_fin', 'estado',
+            'nombre_p', 'tipo', 'valor', 'fecha_inicio', 'fecha_fin', 'estado',
         ]));
 
         if ($request->filled('productos')) {
-            $promocion->productos()->sync($request->productos);
+            foreach ($request->productos as $item) {
+                if (!empty($item['id'])) {
+                    $promocion->productos()->attach($item['id'], [
+                        'tamano' => $item['tamano'] ?? null
+                    ]);
+                }
+            }
         }
 
         return redirect()->route('promociones.index')
-                         ->with('success', 'Promoción creada correctamente.');
+                        ->with('success', 'Promoción creada correctamente.');
     }
 
     public function edit(Promocion $promocion)
     {
-        $productos         = Producto::where('estado', 'activo')->orderBy('nombre')->get();
-        $productosAsignados = $promocion->productos->pluck('id')->toArray();
+        $productos = Producto::with('precios')->orderBy('nombre')->get();
+        $productosAsignados = $promocion->productos->map(fn($p) => [
+            'id'     => $p->id,
+            'tamano' => $p->pivot->tamano,
+        ])->toArray();
+
         return view('Promociones.crear', compact('promocion', 'productos', 'productosAsignados'));
     }
 
     public function update(Request $request, Promocion $promocion)
     {
         $request->validate([
-            'nombre_p'     => ['required', 'string', 'max:150'],
-            'tipo'         => ['required', 'in:porcentaje,monto'],
-            'valor'        => ['required', 'numeric', 'min:0'],
-            'fecha_inicio' => ['required', 'date'],
-            'fecha_fin'    => ['required', 'date', 'after_or_equal:fecha_inicio'],
-            'estado'       => ['required', 'in:activa,inactiva'],
-            'productos'    => ['nullable', 'array'],
-            'productos.*'  => ['exists:productos,id'],
+            'nombre_p'    => ['required', 'string', 'max:150'],
+            'tipo'        => ['required', 'in:porcentaje,monto'],
+            'valor'       => ['required', 'numeric', 'min:0'],
+            'fecha_inicio'=> ['required', 'date'],
+            'fecha_fin'   => ['required', 'date', 'after_or_equal:fecha_inicio'],
+            'estado'      => ['required', 'in:activa,inactiva'],
         ]);
 
         $promocion->update($request->only([
-            'nombre_p', 'tipo', 'valor',
-            'fecha_inicio', 'fecha_fin', 'estado',
+            'nombre_p', 'tipo', 'valor', 'fecha_inicio', 'fecha_fin', 'estado',
         ]));
 
-        $promocion->productos()->sync($request->productos ?? []);
+        $promocion->productos()->detach();
+
+        if ($request->filled('productos')) {
+            foreach ($request->productos as $item) {
+                if (!empty($item['id'])) {
+                    $promocion->productos()->attach($item['id'], [
+                        'tamano' => $item['tamano'] ?? null
+                    ]);
+                }
+            }
+        }
 
         return redirect()->route('promociones.index')
-                         ->with('success', 'Promoción actualizada correctamente.');
+                        ->with('success', 'Promoción actualizada correctamente.');
     }
 
     public function destroy(Promocion $promocion)
     {
-        $promocion->productos()->detach();
-        $promocion->delete();
-
+        $promocion->update(['estado' => 'inactiva']);
         return redirect()->route('promociones.index')
-                         ->with('success', 'Promoción eliminada correctamente.');
+                        ->with('success', 'Promoción desactivada correctamente.');
     }
 }

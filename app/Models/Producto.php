@@ -39,4 +39,8 @@ class Producto extends Model
     {
         return $this->hasMany(DetallePedido::class, 'producto_id');
     }
+    public function precios()
+    {
+        return $this->hasMany(ProductoPrecio::class);
+    }
 }

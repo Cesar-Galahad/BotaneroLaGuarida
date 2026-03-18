@@ -1,17 +1,23 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use Illuminate\Support\Facades\Auth;
 use App\Models\Producto;
 use App\Models\Categoria;
 use Illuminate\Http\Request;
+use App\Models\ProductoPrecio;
 use Illuminate\Support\Facades\Storage;
 
 class ProductosController extends Controller
 {
     public function index()
     {
-        $productos = Producto::with('categoria')->orderBy('nombre')->get();
+        $rol = Auth::guard('empleado')->user()->rol->nombre ?? '';
+
+        $productos = $rol === 'Administrador'
+            ? Producto::with('categoria')->get()
+            : Producto::with('categoria')->where('estado', 'activo')->get();
+
         return view('Productos.listado', compact('productos'));
     }
 
@@ -24,28 +30,34 @@ class ProductosController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'nombre'       => ['required', 'string', 'max:150'],
-            'descripcion'  => ['nullable', 'string'],
-            'precio_base'  => ['required', 'numeric', 'min:0'],
-            'existencia'   => ['required', 'integer', 'min:0'],
-            'categoria_id' => ['required', 'exists:categorias,id'],
-            'estado'       => ['required', 'in:activo,inactivo'],
-            'imagen'       => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
+            'nombre'      => 'required|string|max:150',
+            'descripcion' => 'nullable|string',
+            'precio_base' => 'nullable|numeric|min:0',
+            'existencia'  => 'required|integer|min:0',
+            'categoria_id'=> 'required|exists:categorias,id',
+            'imagen'      => 'nullable|image|mimes:jpg,jpeg,png|max:5120',
+            'precios.*.nombre' => 'required_with:precios|string|max:50',
+            'precios.*.precio' => 'required_with:precios|numeric|min:0',
         ]);
 
-        $datos = $request->only([
-            'nombre', 'descripcion', 'precio_base',
-            'existencia', 'estado', 'categoria_id',
-        ]);
+        $datos = $request->only(['nombre', 'descripcion', 'precio_base', 'existencia', 'categoria_id']);
 
         if ($request->hasFile('imagen')) {
             $datos['imagen'] = $request->file('imagen')->store('productos', 'public');
         }
 
-        Producto::create($datos);
+        $producto = Producto::create($datos);
 
-        return redirect()->route('productos.index')
-                        ->with('success', 'Producto registrado correctamente.');
+        // Guardar precios si los hay
+        if ($request->filled('precios')) {
+            foreach ($request->precios as $precio) {
+                if (!empty($precio['nombre']) && isset($precio['precio'])) {
+                    $producto->precios()->create($precio);
+                }
+            }
+        }
+
+        return redirect()->route('productos.index')->with('success', 'Producto creado correctamente.');
     }
 
     public function edit(Producto $producto)
@@ -57,37 +69,46 @@ class ProductosController extends Controller
     public function update(Request $request, Producto $producto)
     {
         $request->validate([
-            'nombre'       => ['required', 'string', 'max:150'],
-            'descripcion'  => ['nullable', 'string'],
-            'precio_base'  => ['required', 'numeric', 'min:0'],
-            'existencia'   => ['required', 'integer', 'min:0'],
-            'categoria_id' => ['required', 'exists:categorias,id'],
-            'estado'       => ['required', 'in:activo,inactivo'],
-            'imagen'       => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
+            'nombre'      => 'required|string|max:150',
+            'descripcion' => 'nullable|string',
+            'precio_base' => 'nullable|numeric|min:0',
+            'existencia'  => 'required|integer|min:0',
+            'categoria_id'=> 'required|exists:categorias,id',
+            'imagen'      => 'nullable|image|mimes:jpg,jpeg,png|max:5120',
+            'precios.*.nombre' => 'required_with:precios|string|max:50',
+            'precios.*.precio' => 'required_with:precios|numeric|min:0',
         ]);
 
-        $datos = $request->only([
-            'nombre', 'descripcion', 'precio_base',
-            'existencia', 'estado', 'categoria_id',
-        ]);
+        $datos = $request->only(['nombre', 'descripcion', 'precio_base', 'existencia', 'categoria_id']);
 
         if ($request->hasFile('imagen')) {
             if ($producto->imagen) {
-                Storage::disk('public')->delete($producto->imagen);
+                \Storage::disk('public')->delete($producto->imagen);
             }
             $datos['imagen'] = $request->file('imagen')->store('productos', 'public');
         }
 
         $producto->update($datos);
 
-        return redirect()->route('productos.index')
-                        ->with('success', 'Producto actualizado correctamente.');
+        // Reemplazar precios
+        $producto->precios()->delete();
+        if ($request->filled('precios')) {
+            foreach ($request->precios as $precio) {
+                if (!empty($precio['nombre']) && isset($precio['precio'])) {
+                    $producto->precios()->create($precio);
+                }
+            }
+        }
+
+        return redirect()->route('productos.index')->with('success', 'Producto actualizado correctamente.');
     }
 
     public function destroy(Producto $producto)
     {
-        $producto->delete();
-        return redirect()->route('productos.index')
-                         ->with('success', 'Producto eliminado correctamente.');
+        $nuevoEstado = $producto->estado === 'activo' ? 'inactivo' : 'activo';
+        $producto->update(['estado' => $nuevoEstado]);
+
+        $mensaje = $nuevoEstado === 'inactivo' ? 'Producto desactivado.' : 'Producto activado.';
+        return redirect()->route('productos.index')->with('success', $mensaje);
     }
 }

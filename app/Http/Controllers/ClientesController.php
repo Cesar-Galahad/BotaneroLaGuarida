@@ -27,7 +27,7 @@ class ClientesController extends Controller
             'apellidom' => ['nullable', 'string', 'max:100'],
             'telefono'  => ['nullable', 'string', 'max:20'],
             'estado'    => ['required', 'in:activo,inactivo'],
-            'imagen'    => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:5120s'],
+            'imagen'    => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
         ]);
 
         $datos = $request->only(['nombre', 'apellidop', 'apellidom', 'telefono', 'estado']);
@@ -75,8 +75,21 @@ class ClientesController extends Controller
 
     public function destroy(Cliente $cliente)
     {
-        $cliente->delete();
+        $cliente->update(['estado' => 'inactivo']);
         return redirect()->route('clientes.index')
-                         ->with('success', 'Cliente eliminado correctamente.');
+                        ->with('success', 'Cliente desactivado correctamente.');
+    }
+    public function buscar(Request $request)
+    {
+        $clientes = Cliente::where('estado', 'activo')
+            ->where(function($q) use ($request) {
+                $q->where('nombre', 'like', '%' . $request->q . '%')
+                ->orWhere('apellidop', 'like', '%' . $request->q . '%')
+                ->orWhere('telefono', 'like', '%' . $request->q . '%');
+            })
+            ->limit(5)
+            ->get(['id', 'nombre', 'apellidop', 'puntos', 'imagen']);
+
+        return response()->json($clientes);
     }
 }
