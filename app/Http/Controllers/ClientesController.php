@@ -8,9 +8,24 @@ use Illuminate\Support\Facades\Storage;
 
 class ClientesController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $clientes = Cliente::orderBy('apellidop')->get();
+        $query = Cliente::query();
+
+        if ($request->filled('buscar')) {
+            $query->where(function($q) use ($request) {
+                $q->where('nombre',    'like', '%' . $request->buscar . '%')
+                ->orWhere('apellidop', 'like', '%' . $request->buscar . '%')
+                ->orWhere('telefono',  'like', '%' . $request->buscar . '%');
+            });
+        }
+
+        if ($request->filled('estado')) {
+            $query->where('estado', $request->estado);
+        }
+
+        $clientes = $query->orderBy('apellidop')->paginate(15)->withQueryString();
+
         return view('Clientes.listado', compact('clientes'));
     }
 
@@ -75,9 +90,10 @@ class ClientesController extends Controller
 
     public function destroy(Cliente $cliente)
     {
-        $cliente->update(['estado' => 'inactivo']);
-        return redirect()->route('clientes.index')
-                        ->with('success', 'Cliente desactivado correctamente.');
+        $nuevoEstado = $cliente->estado === 'activo' ? 'inactivo' : 'activo';
+        $cliente->update(['estado' => $nuevoEstado]);
+        $mensaje = $nuevoEstado === 'inactivo' ? 'Cliente desactivado.' : 'Cliente activado.';
+        return redirect()->route('clientes.index')->with('success', $mensaje);
     }
     public function buscar(Request $request)
     {

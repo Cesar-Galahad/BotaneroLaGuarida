@@ -67,15 +67,9 @@ class CategoriasController extends Controller
 
     public function destroy(Categoria $categoria)
     {
-        // Verificar que no tenga productos antes de eliminar
-        if ($categoria->productos()->count() > 0) {
-            return redirect()->route('categorias.index')
-                             ->with('error', 'No se puede eliminar una categoría con productos asignados.');
-        }
-
-        $categoria->delete();
-
-        return redirect()->route('categorias.index')
-                         ->with('success', 'Categoría eliminada correctamente.');
+        $nuevoEstado = $categoria->estado === 'activo' ? 'inactivo' : 'activo';
+        $categoria->update(['estado' => $nuevoEstado]);
+        $mensaje = $nuevoEstado === 'inactivo' ? 'Categoría desactivada.' : 'Categoría activada.';
+        return redirect()->route('categorias.index')->with('success', $mensaje);
     }
 }

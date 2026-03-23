@@ -12,11 +12,16 @@ use App\Http\Controllers\PromocionesController;
 use App\Http\Controllers\MeseroController;
 use App\Http\Controllers\CocineroController;
 use App\Http\Controllers\BitacoraController;
+use App\Http\Controllers\TamaniosController;
+use App\Http\Controllers\ProductosCanjeController;
 
 // ── Auth ──────────────────────────────────────────────────────
 Route::get('/', [EmpleadosController::class, 'showLogin'])->name('login');
 Route::post('/login', [EmpleadosController::class, 'login'])->name('login.post');
 Route::post('/logout', [EmpleadosController::class, 'logout'])->name('logout');
+Route::get('/perfil',  [EmpleadosController::class, 'perfil'])->name('perfil');
+Route::post('/perfil', [EmpleadosController::class, 'actualizarPerfil'])->name('perfil.update');
+Route::get('/privacidad', function () {return view('privacidad');})->name('privacidad');
 // Fuera de cualquier grupo de auth
 Route::get('/auth/google',          [EmpleadosController::class, 'redirectToGoogle'])->name('auth.google');
 Route::get('/auth/google/callback', [EmpleadosController::class, 'handleGoogleCallback'])->name('auth.google.callback');
@@ -85,6 +90,21 @@ Route::middleware('auth:empleado')->group(function () {
         Route::patch('/pedidos/{pedido}/cerrar',     [PedidosController::class, 'cerrar'])->name('pedidos.cerrar');
         Route::patch('/pedidos/{pedido}/cancelar',   [PedidosController::class, 'cancelar'])->name('pedidos.cancelar');
         */
+        Route::get('/tamanios',                  [TamaniosController::class, 'index'])->name('tamanios.index');
+        Route::get('/tamanios/crear',            [TamaniosController::class, 'create'])->name('tamanios.create');
+        Route::post('/tamanios',                 [TamaniosController::class, 'store'])->name('tamanios.store');
+        Route::get('/tamanios/{tamanio}/editar', [TamaniosController::class, 'edit'])->name('tamanios.edit');
+        Route::put('/tamanios/{tamanio}',        [TamaniosController::class, 'update'])->name('tamanios.update');
+        Route::delete('/tamanios/{tamanio}',     [TamaniosController::class, 'destroy'])->name('tamanios.destroy');
+
+
+
+        Route::get('/canjes',                [ProductosCanjeController::class, 'index'])->name('canjes.index');
+        Route::get('/canjes/crear',          [ProductosCanjeController::class, 'create'])->name('canjes.create');
+        Route::post('/canjes',               [ProductosCanjeController::class, 'store'])->name('canjes.store');
+        Route::get('/canjes/{canje}/editar', [ProductosCanjeController::class, 'edit'])->name('canjes.edit');
+        Route::put('/canjes/{canje}',        [ProductosCanjeController::class, 'update'])->name('canjes.update');
+        Route::delete('/canjes/{canje}',     [ProductosCanjeController::class, 'destroy'])->name('canjes.destroy');
     });
 
     // ── Mesero ────────────────────────────────────────────────
@@ -99,6 +119,8 @@ Route::middleware('auth:empleado')->group(function () {
         Route::patch('/pedidos/{pedido}/cancelar',  [PedidosController::class, 'cancelar'])->name('pedidos.cancelar');
         Route::get('/clientes/buscar', [ClientesController::class, 'buscar'])->name('clientes.buscar');
         Route::patch('/pedidos/{pedido}/cliente', [PedidosController::class, 'asignarCliente'])->name('pedidos.cliente');
+        Route::get('/pedidos/{pedido}/ticket', [PedidosController::class, 'ticket'])->name('pedidos.ticket');
+        Route::post('/pedidos/{pedido}/canjear', [PedidosController::class, 'canjearProducto'])->name('pedidos.canjear');
     });
 
     // ── Cocinero ──────────────────────────────────────────────

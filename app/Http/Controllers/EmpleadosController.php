@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Socialite\Facades\Socialite;
+use App\Models\HistorialContrasena;
 
 class EmpleadosController extends Controller
 {
@@ -78,11 +79,23 @@ class EmpleadosController extends Controller
 
     // ── CRUD ───────────────────────────────────────────────────
 
-    public function index()
+    public function index(Request $request)
     {
-        $empleados = Empleado::with('rol')
-                             ->orderBy('apellidop')
-                             ->get();
+        $query = Empleado::with('rol');
+
+        if ($request->filled('buscar')) {
+            $query->where(function($q) use ($request) {
+                $q->where('nombre',    'like', '%' . $request->buscar . '%')
+                ->orWhere('apellidop', 'like', '%' . $request->buscar . '%')
+                ->orWhere('correo',    'like', '%' . $request->buscar . '%');
+            });
+        }
+
+        if ($request->filled('estado')) {
+            $query->where('estado', $request->estado);
+        }
+
+        $empleados = $query->orderBy('apellidop')->paginate(15)->withQueryString();
 
         return view('Empleados.listado', compact('empleados'));
     }
@@ -119,9 +132,14 @@ class EmpleadosController extends Controller
         if ($request->hasFile('imagen')) {
             $datos['imagen'] = $request->file('imagen')->store('empleados', 'public');
         }
+        
+        $empleado = Empleado::create($datos);
 
-        Empleado::create($datos);
-
+        // Guardar contraseña inicial en historial
+        HistorialContrasena::create([
+            'empleado_id' => $empleado->id,
+            'contrasena'  => $datos['contrasena'], // ya viene hasheada
+        ]);
         return redirect()->route('empleados.index')
                         ->with('success', 'Empleado registrado correctamente.');
     }
@@ -174,11 +192,10 @@ class EmpleadosController extends Controller
 
     public function destroy(Empleado $empleado)
     {
-        // No borramos físicamente, solo inactivamos
-        $empleado->update(['estado' => 'inactivo']);
-
-        return redirect()->route('empleados.index')
-                         ->with('success', 'Empleado dado de baja.');
+        $nuevoEstado = $empleado->estado === 'activo' ? 'inactivo' : 'activo';
+        $empleado->update(['estado' => $nuevoEstado]);
+        $mensaje = $nuevoEstado === 'inactivo' ? 'Empleado desactivado.' : 'Empleado activado.';
+        return redirect()->route('empleados.index')->with('success', $mensaje);
     }
     public function showPrimerLogin()
     {
@@ -188,8 +205,8 @@ class EmpleadosController extends Controller
     public function cambiarContrasena(Request $request)
     {
         $request->validate([
-            'contrasena_nueva'    => ['required', 'string', 'min:6'],
-            'contrasena_confirmar'=> ['required', 'same:contrasena_nueva'],
+            'contrasena_nueva'     => ['required', 'string', 'min:6'],
+            'contrasena_confirmar' => ['required', 'same:contrasena_nueva'],
         ], [
             'contrasena_nueva.required'     => 'La nueva contraseña es obligatoria.',
             'contrasena_nueva.min'          => 'La contraseña debe tener al menos 6 caracteres.',
@@ -199,7 +216,25 @@ class EmpleadosController extends Controller
 
         $empleado = Auth::guard('empleado')->user();
 
-        $empleado->update([
+        // Verificar que no se haya usado antes
+        $historial = HistorialContrasena::where('empleado_id', $empleado->id)->get();
+
+        foreach ($historial as $registro) {
+            if (Hash::check($request->contrasena_nueva, $registro->contrasena)) {
+                return back()->withErrors([
+                    'contrasena_nueva' => 'Esta contraseña ya fue utilizada anteriormente. Elige una diferente.'
+                ]);
+            }
+        }
+
+        // Guardar en historial
+        HistorialContrasena::create([
+            'empleado_id' => $empleado->id,
+            'contrasena'  => Hash::make($request->contrasena_nueva),
+        ]);
+
+        // Actualizar contraseña
+        Empleado::where('id', $empleado->id)->update([
             'contrasena'   => Hash::make($request->contrasena_nueva),
             'primer_login' => 0,
         ]);
@@ -251,5 +286,68 @@ class EmpleadosController extends Controller
         }
 
         return redirect()->route('dashboard');
+    }
+    public function perfil()
+    {
+        $empleado = Auth::guard('empleado')->user();
+        return view('Empleados.perfil', compact('empleado'));
+    }
+
+    public function actualizarPerfil(Request $request)
+    {
+        $empleado = Auth::guard('empleado')->user();
+
+        $request->validate([
+            'imagen'               => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
+            'contrasena_actual'    => ['nullable', 'string'],
+            'contrasena_nueva'     => ['nullable', 'string', 'min:6'],
+            'contrasena_confirmar' => ['nullable', 'same:contrasena_nueva'],
+        ], [
+            'contrasena_nueva.min'          => 'La contraseña debe tener al menos 6 caracteres.',
+            'contrasena_confirmar.same'     => 'Las contraseñas no coinciden.',
+        ]);
+
+        $datos = [];
+
+        // Cambiar foto
+        if ($request->hasFile('imagen')) {
+            if ($empleado->imagen) {
+                \Storage::disk('public')->delete($empleado->imagen);
+            }
+            $datos['imagen'] = $request->file('imagen')->store('empleados', 'public');
+        }
+
+        // Cambiar contraseña
+        if ($request->filled('contrasena_nueva')) {
+
+            // Verificar contraseña actual
+            if (!Hash::check($request->contrasena_actual, $empleado->contrasena)) {
+                return back()->withErrors(['contrasena_actual' => 'La contraseña actual es incorrecta.']);
+            }
+
+            // Verificar que no se haya usado antes
+            $historial = HistorialContrasena::where('empleado_id', $empleado->id)->get();
+            foreach ($historial as $registro) {
+                if (Hash::check($request->contrasena_nueva, $registro->contrasena)) {
+                    return back()->withErrors([
+                        'contrasena_nueva' => 'Esta contraseña ya fue utilizada anteriormente.'
+                    ]);
+                }
+            }
+
+            // Guardar en historial y actualizar
+            HistorialContrasena::create([
+                'empleado_id' => $empleado->id,
+                'contrasena'  => Hash::make($request->contrasena_nueva),
+            ]);
+
+            $datos['contrasena'] = Hash::make($request->contrasena_nueva);
+        }
+
+        if (!empty($datos)) {
+            Empleado::where('id', $empleado->id)->update($datos);
+        }
+
+        return back()->with('success', 'Perfil actualizado correctamente.');
     }
 }

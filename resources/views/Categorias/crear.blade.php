@@ -59,6 +59,7 @@
                     Cancelar
                 </a>
                 <button type="submit"
+                        onclick="this.disabled=true; this.innerText='Guardando...'; this.form.submit();"
                         class="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-5 py-2 rounded-lg transition">
                     {{ isset($categoria) ? 'Actualizar' : 'Guardar' }}
                 </button>

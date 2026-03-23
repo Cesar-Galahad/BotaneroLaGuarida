@@ -30,7 +30,7 @@
 </div>
 
 {{-- Tabla --}}
-<div class="bg-white rounded-2xl shadow overflow-hidden">
+<div class="bg-white rounded-2xl shadow overflow-hidden" x-data>
     <table class="w-full text-sm text-left text-gray-700">
         <thead class="bg-gray-900 text-gray-200 text-xs uppercase">
             {{-- thead --}}
@@ -38,6 +38,7 @@
                 <th class="px-4 py-3">#</th>
                 <th class="px-4 py-3">Imagen</th>
                 <th class="px-4 py-3">Nombre</th>
+                <th class="px-4 py-3">Estado</th>
                 @if($rol === 'Administrador')
                     <th class="px-4 py-3 text-center">Acciones</th>
                 @else
@@ -66,7 +67,12 @@
                 </td>
 
                 <td class="px-4 py-3 font-medium">{{ $categoria->nombre }}</td>
-
+                <td class="px-4 py-3">
+                    <span class="px-2 py-1 rounded-full text-xs font-semibold
+                        {{ $categoria->estado === 'activo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">
+                        {{ ucfirst($categoria->estado) }}
+                    </span>
+                </td>
 
                 <td class="px-4 py-3">
                     <div class="flex justify-center gap-2">
@@ -76,12 +82,19 @@
                                 Editar
                             </a>
                             <form method="POST" action="{{ route('categorias.destroy', $categoria) }}"
-                                onsubmit="return confirm('¿Eliminar esta categoría?')">
+                                id="form-categoria-{{ $categoria->id }}">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit"
-                                        class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1 rounded-lg transition">
-                                    Eliminar
+                                <button type="button"
+                                        @click="$dispatch('abrir-confirm', {
+                                            mensaje: '¿Cambiar estado de esta categoría?',
+                                            formId: 'form-categoria-{{ $categoria->id }}'
+                                        })"
+                                        class="text-xs font-semibold px-3 py-1 rounded-lg transition
+                                            {{ $categoria->estado === 'activo'
+                                                ? 'bg-red-600 hover:bg-red-700 text-white'
+                                                : 'bg-green-600 hover:bg-green-700 text-white' }}">
+                                    {{ $categoria->estado === 'activo' ? 'Desactivar' : 'Activar' }}
                                 </button>
                             </form>
                         @endif

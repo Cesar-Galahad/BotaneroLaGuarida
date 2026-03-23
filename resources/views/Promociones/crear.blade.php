@@ -92,24 +92,24 @@
             {{-- Productos --}}
             <div class="mb-6"
                 x-data="{
-                    seleccionados: {{ json_encode(old('productos', array_map(fn($p) => ['id' => $p['id'], 'tamano' => $p['tamano']], $productosAsignados ?? []))) }},
+                    seleccionados: {{ json_encode(old('productos', $productosAsignados ?? [])) }},
                     tieneSeleccionado(id) {
                         return this.seleccionados.some(p => p.id == id);
                     },
-                    tamanoDeProducto(id) {
+                    tamanioDeProducto(id) {
                         const found = this.seleccionados.find(p => p.id == id);
-                        return found ? found.tamano : '';
+                        return found ? found.tamanio_id : '';
                     },
                     toggle(id) {
                         if (this.tieneSeleccionado(id)) {
                             this.seleccionados = this.seleccionados.filter(p => p.id != id);
                         } else {
-                            this.seleccionados.push({ id: id, tamano: '' });
+                            this.seleccionados.push({ id: id, tamanio_id: '' });
                         }
                     },
-                    setTamano(id, tamano) {
+                    setTamanio(id, tamanio_id) {
                         const item = this.seleccionados.find(p => p.id == id);
-                        if (item) item.tamano = tamano;
+                        if (item) item.tamanio_id = tamanio_id;
                     }
                 }">
                 <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -135,13 +135,21 @@
                         {{-- Selector de tamaño si el producto los tiene --}}
                         @if($producto->precios->count() > 0)
                         <div x-show="tieneSeleccionado({{ $producto->id }})" x-cloak class="mt-2 ml-7">
-                            <select @change="setTamano({{ $producto->id }}, $event.target.value)"
+                            <select @change="setTamanio({{ $producto->id }}, $event.target.value)"
                                     class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-red-500">
                                 <option value="">-- Todos los tamaños --</option>
                                 @foreach($producto->precios as $precio)
-                                    <option value="{{ $precio->nombre }}"
-                                        :selected="tamanoDeProducto({{ $producto->id }}) === '{{ $precio->nombre }}'">
-                                        {{ $precio->nombre }} — ${{ number_format($precio->precio, 2) }}
+                                    {{-- CORREGIDO: value es tamanio_id, label muestra nombre del tamaño --}}
+                                    <option value="{{ $precio->tamanio_id }}"
+                                        :selected="tamanioDeProducto({{ $producto->id }}) == '{{ $precio->tamanio_id }}'">
+                                        @if($precio->tamanio)
+                                            @if(in_array($precio->tamanio->unidad, ['vaso', 'litro']))
+                                                {{ ucfirst($precio->tamanio->unidad) }}
+                                            @else
+                                                {{ $precio->tamanio->cantidad }} {{ $precio->tamanio->unidad }}
+                                            @endif
+                                        @endif
+                                        — ${{ number_format($precio->precio, 2) }}
                                     </option>
                                 @endforeach
                             </select>
@@ -152,11 +160,11 @@
                     @endforeach
                 </div>
 
-                {{-- Inputs hidden para enviar los datos --}}
+                {{-- Inputs hidden — CORREGIDO: manda tamanio_id en lugar de tamano --}}
                 <template x-for="(item, index) in seleccionados" :key="index">
                     <span>
-                        <input type="hidden" :name="'productos[' + index + '][id]'" :value="item.id">
-                        <input type="hidden" :name="'productos[' + index + '][tamano]'" :value="item.tamano">
+                        <input type="hidden" :name="'productos[' + index + '][id]'"         :value="item.id">
+                        <input type="hidden" :name="'productos[' + index + '][tamanio_id]'" :value="item.tamanio_id">
                     </span>
                 </template>
             </div>

@@ -52,6 +52,7 @@
             </div>
 
             <button type="submit"
+                    onclick="this.disabled=true; this.innerText='Guardando...'; this.form.submit();"
                     class="w-full bg-[#f4a400] hover:bg-[#fbbb26] text-black font-semibold py-3 rounded-lg transition">
                 Guardar y continuar
             </button>

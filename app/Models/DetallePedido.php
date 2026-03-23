@@ -10,8 +10,12 @@ class DetallePedido extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'pedido_id', 'producto_id', 'cantidad',
-        'precio_unitario', 'descuento_aplicado','tamano',
+        'pedido_id',
+        'producto_id', 
+        'tamanio_id',
+        'cantidad',
+        'precio_unitario',
+        'descuento_aplicado',
     ];
 
     protected $casts = [
@@ -27,5 +31,10 @@ class DetallePedido extends Model
     public function pedido()
     {
         return $this->belongsTo(Pedido::class, 'pedido_id');
+    }
+
+    public function tamanio()
+    {
+        return $this->belongsTo(Tamanio::class, 'tamanio_id');
     }
 }

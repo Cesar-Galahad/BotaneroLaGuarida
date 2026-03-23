@@ -19,9 +19,44 @@
         + Nuevo empleado
     </a>
 </div>
+{{-- Buscador --}}
+<form method="GET" action="{{ route('empleados.index') }}"
+      class="bg-white rounded-2xl shadow p-4 mb-6 flex flex-wrap gap-3 items-end">
 
+    <div class="flex-1 min-w-48">
+        <label class="block text-xs font-medium text-gray-600 mb-1">Buscar</label>
+        <input type="text" name="buscar" value="{{ request('buscar') }}"
+               placeholder="Nombre, apellido o teléfono..."
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+    </div>
+
+    @php $rol = Auth::guard('empleado')->user()->rol->nombre ?? ''; @endphp
+    @if($rol === 'Administrador')
+    <div class="min-w-36">
+        <label class="block text-xs font-medium text-gray-600 mb-1">Estado</label>
+        <select name="estado"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+            <option value="">Todos</option>
+            <option value="activo"   {{ request('estado') === 'activo'   ? 'selected' : '' }}>Activo</option>
+            <option value="inactivo" {{ request('estado') === 'inactivo' ? 'selected' : '' }}>Inactivo</option>
+        </select>
+    </div>
+    @endif
+
+    <div class="flex gap-2">
+        <button type="submit"
+                class="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
+            Buscar
+        </button>
+        <a href="{{ route('empleados.index') }}"
+           class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg transition">
+            Limpiar
+        </a>
+    </div>
+
+</form>
 {{-- Tabla --}}
-<div class="bg-white rounded-2xl shadow overflow-hidden">
+<div class="bg-white rounded-2xl shadow overflow-hidden" x-data>
     <table class="w-full text-sm text-left text-gray-700">
         <thead class="bg-gray-900 text-gray-200 text-xs uppercase">
             <tr>
@@ -73,17 +108,23 @@
                 <td class="px-4 py-3">
                     <div class="flex justify-center gap-2">
                         <a href="{{ route('empleados.edit', $empleado) }}"
-                           class="bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-semibold px-3 py-1 rounded-lg transition">
+                        class="bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-semibold px-3 py-1 rounded-lg transition">
                             Editar
                         </a>
-
                         <form method="POST" action="{{ route('empleados.destroy', $empleado) }}"
-                              onsubmit="return confirm('¿Dar de baja a este empleado?')">
+                            id="form-empleado-{{ $empleado->id }}">
                             @csrf
                             @method('DELETE')
-                            <button type="submit"
-                                    class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1 rounded-lg transition">
-                                Baja
+                            <button type="button"
+                                    @click="$dispatch('abrir-confirm', {
+                                        mensaje: '¿Cambiar estado de este empleado?',
+                                        formId: 'form-empleado-{{ $empleado->id }}'
+                                    })"
+                                    class="text-xs font-semibold px-3 py-1 rounded-lg transition
+                                        {{ $empleado->estado === 'activo'
+                                            ? 'bg-red-600 hover:bg-red-700 text-white'
+                                            : 'bg-green-600 hover:bg-green-700 text-white' }}">
+                                {{ $empleado->estado === 'activo' ? 'Desactivar' : 'Activar' }}
                             </button>
                         </form>
                     </div>
@@ -99,5 +140,35 @@
         </tbody>
     </table>
 </div>
+@if($empleados->hasPages())
+<div class="mt-6 flex justify-center">
+    <div class="flex items-center gap-1">
+        @if($empleados->onFirstPage())
+            <span class="px-3 py-2 text-sm text-gray-400 bg-white rounded-lg shadow cursor-not-allowed">←</span>
+        @else
+            <a href="{{ $empleados->previousPageUrl() }}"
+               class="px-3 py-2 text-sm bg-white rounded-lg shadow hover:bg-red-600 hover:text-white transition">←</a>
+        @endif
 
+        @foreach($empleados->getUrlRange(1, $empleados->lastPage()) as $page => $url)
+            @if($page == $empleados->currentPage())
+                <span class="px-3 py-2 text-sm font-bold text-white rounded-lg shadow"
+                      style="background-color: #ea0000;">{{ $page }}</span>
+            @else
+                <a href="{{ $url }}"
+                   class="px-3 py-2 text-sm bg-white rounded-lg shadow hover:bg-red-600 hover:text-white transition">
+                    {{ $page }}
+                </a>
+            @endif
+        @endforeach
+
+        @if($empleados->hasMorePages())
+            <a href="{{ $empleados->nextPageUrl() }}"
+               class="px-3 py-2 text-sm bg-white rounded-lg shadow hover:bg-red-600 hover:text-white transition">→</a>
+        @else
+            <span class="px-3 py-2 text-sm text-gray-400 bg-white rounded-lg shadow cursor-not-allowed">→</span>
+        @endif
+    </div>
+</div>
+@endif
 @endsection
