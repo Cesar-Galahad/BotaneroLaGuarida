@@ -209,14 +209,7 @@
                        style="color: {{ request()->routeIs('bitacora.index') && request('tab', 'productos') === 'productos' ? '#f4a400' : '#9ca3af' }};"
                        onmouseover="this.style.color='#f4a400'"
                        onmouseout="this.style.color='#9ca3af'">
-                        Bitácora Productos
-                    </a>
-                    <a href="{{ route('bitacora.index', ['tab' => 'pedidos']) }}"
-                       class="block px-4 py-1.5 text-sm rounded transition"
-                       style="color: {{ request()->routeIs('bitacora.index') && request('tab') === 'pedidos' ? '#f4a400' : '#9ca3af' }};"
-                       onmouseover="this.style.color='#f4a400'"
-                       onmouseout="this.style.color='#9ca3af'">
-                        Bitácora Pedidos
+                        Bitácora
                     </a>
                 </div>
             </div>
