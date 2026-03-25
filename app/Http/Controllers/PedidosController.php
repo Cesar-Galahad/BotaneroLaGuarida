@@ -200,12 +200,19 @@ class PedidosController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    public function ticket(Pedido $pedido)
-    {
-        $pedido->load(['mesa', 'empleado', 'cliente', 'detalles.producto', 'detalles.tamanio', 'pagos']);
-        return view('Pedidos.ticket', compact('pedido'));
-    }
+   public function ticket(Pedido $pedido)
+{
+    $pedido->load([
+        'mesa',
+        'empleado',
+        'cliente',
+        'detalles.producto',
+        'detalles.tamanio',
+        'pagos'
+    ]);
 
+    return view('Pedidos.ticket', compact('pedido'));
+}
     public function canjearProducto(Request $request, Pedido $pedido)
     {
         $canje   = ProductoCanje::with(['producto', 'tamanio'])->findOrFail($request->canje_id);
@@ -239,4 +246,13 @@ class PedidosController extends Controller
             'tamanio'          => $canje->tamanio ? $canje->tamanio->cantidad . ' ' . $canje->tamanio->unidad : null,
         ]);
     }
+   public function historial()
+{
+    $pedidos = Pedido::with(['mesa', 'empleado', 'cliente', 'detalles.producto'])
+                    ->where('estado', 'cerrado')
+                    ->orderBy('id', 'desc')
+                    ->get();
+
+    return view('Pedidos.histo-ticket', compact('pedidos'));
+}
 }

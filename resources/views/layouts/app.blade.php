@@ -205,12 +205,20 @@
                 </button>
                 <div x-show="active === 'reportes'" x-cloak x-transition class="ml-4 mt-1 space-y-1">
                     <a href="{{ route('bitacora.index', ['tab' => 'productos']) }}"
+                        
                        class="block px-4 py-1.5 text-sm rounded transition"
                        style="color: {{ request()->routeIs('bitacora.index') && request('tab', 'productos') === 'productos' ? '#f4a400' : '#9ca3af' }};"
                        onmouseover="this.style.color='#f4a400'"
                        onmouseout="this.style.color='#9ca3af'">
                         Bitácora
                     </a>
+                    <a href="{{ route('pedidos.historial') }}"
+   class="block px-4 py-1.5 text-sm rounded transition"
+   style="color: {{ request()->routeIs('pedidos.historial') ? '#f4a400' : '#9ca3af' }};"
+   onmouseover="this.style.color='#f4a400'"
+   onmouseout="this.style.color='#9ca3af'">
+    Historial de tickets
+</a>
                 </div>
             </div>
             @endif
